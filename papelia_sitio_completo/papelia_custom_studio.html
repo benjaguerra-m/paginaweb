@@ -1,0 +1,1551 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diseñador 3D de Agendas - Papelia</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        cream: { DEFAULT: '#FCF8F5', dark: '#F5ECE5' },
+                        blush: { light: '#FFF0F3', DEFAULT: '#EFA8B8', dark: '#D87A93' },
+                        sage: { light: '#E2E8DC', DEFAULT: '#637554', dark: '#4A573F' },
+                        charcoal: '#383838'
+                    },
+                    fontFamily: {
+                        serif: ['"Cormorant Garamond"', 'serif'],
+                        sans: ['"Quicksand"', 'sans-serif'],
+                        script: ['"Caveat"', 'cursive']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { 
+            background-color: #FCF8F5; 
+            color: #383838; 
+            font-family: 'Quicksand', sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* --- 3D Scene Setup --- */
+        .scene {
+            perspective: 1500px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            min-height: 500px;
+            cursor: grab;
+            user-select: none;
+        }
+        .scene:active { cursor: grabbing; }
+
+        @keyframes float {
+            0%   { transform: rotateX(25deg) rotateY(-25deg) translateY(0px); }
+            50%  { transform: rotateX(28deg) rotateY(-20deg) translateY(-15px); }
+            100% { transform: rotateX(25deg) rotateY(-25deg) translateY(0px); }
+        }
+
+        #bookScaler {
+            transform-style: preserve-3d;
+            transition: transform 0.2s ease;
+        }
+
+        #bookWrapper {
+            transform-style: preserve-3d;
+            transform: rotateX(25deg) rotateY(-25deg);
+        }
+        #bookWrapper.floating {
+            animation: float 6s ease-in-out infinite;
+        }
+
+        /* --- Book Structure --- */
+        .book-container {
+            --book-w: 210px;  
+            --book-h: 297px;
+            --book-d: 15px;
+            --cover-bg: #EFA8B8;
+            --elastic-color: #383838;
+            --font-family: '"Cormorant Garamond", serif';
+            --corner-color-1: #d4af37;
+            --corner-color-2: #ffd700;
+            --spiral-color: #c0c0c0;
+            
+            position: relative;
+            width: var(--book-w);
+            height: var(--book-h);
+            transform-style: preserve-3d;
+            transition: width 0.4s ease, height 0.4s ease, padding 0.3s ease;
+        }
+
+        .face {
+            position: absolute;
+            transform-style: preserve-3d;
+            box-sizing: border-box;
+            backface-visibility: hidden;
+            transition: width 0.4s ease, height 0.4s ease, transform 0.4s ease;
+        }
+
+        /* --- Spine & Back Cover --- */
+        .book-spine {
+            width: var(--book-d);
+            height: 100%;
+            left: 0;
+            transform-origin: left;
+            transform: rotateY(-90deg);
+            background: var(--cover-bg);
+            background-size: cover;
+            background-position: left center;
+            border-radius: 4px 0 0 4px;
+            box-shadow: inset -2px 0 5px rgba(0,0,0,0.2);
+            transition: opacity 0.3s ease;
+        }
+        .back-cover {
+            width: 100%;
+            height: 100%;
+            background: var(--cover-bg);
+            background-size: cover;
+            background-position: center;
+            border-radius: 4px 12px 12px 4px;
+            transform: translateZ(calc(var(--book-d) * -1)) rotateY(180deg);
+            box-shadow: 5px 5px 20px rgba(0,0,0,0.3);
+        }
+
+        /* --- Internal Pages Block --- */
+        .pages-block {
+            position: absolute;
+            width: 98%;
+            height: 98%;
+            top: 1%;
+            left: 1%;
+            background: #fdfdfd;
+            transform: translateZ(calc(var(--book-d) * -1 + 2px));
+            transform-style: preserve-3d;
+            border-radius: 0 8px 8px 0;
+            box-shadow: inset 5px 0 15px rgba(0,0,0,0.05);
+            transition: transform 0.4s ease;
+            overflow: visible;
+        }
+        .pages-right {
+            width: calc(var(--book-d) - 4px);
+            height: 100%;
+            right: 0;
+            transform-origin: right;
+            transform: rotateY(-90deg);
+            background: repeating-linear-gradient(to right, #fff, #fff 2px, #f0f0f0 2px, #f0f0f0 4px);
+            border-radius: 0 4px 4px 0;
+            transition: background 0.3s ease;
+        }
+        .pages-top {
+            width: 100%;
+            height: calc(var(--book-d) - 4px);
+            top: 0;
+            transform-origin: top;
+            transform: rotateX(90deg);
+            background: repeating-linear-gradient(to bottom, #fff, #fff 2px, #f0f0f0 2px, #f0f0f0 4px);
+            transition: background 0.3s ease;
+        }
+        .pages-bottom {
+            width: 100%;
+            height: calc(var(--book-d) - 4px);
+            bottom: 0;
+            transform-origin: bottom;
+            transform: rotateX(-90deg);
+            background: repeating-linear-gradient(to top, #fff, #fff 2px, #f0f0f0 2px, #f0f0f0 4px);
+            transition: background 0.3s ease;
+        }
+
+        .first-page {
+            width: 100%;
+            height: 100%;
+            border-radius: 0 8px 8px 0;
+            transform: translateZ(calc(var(--book-d) - 4px));
+            box-shadow: inset 10px 0 20px rgba(0,0,0,0.05);
+            background-color: #fff;
+            transition: transform 0.4s ease, background 0.3s ease;
+        }
+
+        /* 
+         * REALISTIC PATTERNS (1px = 1mm scale)
+         */
+        .pattern-blank { background-image: none; }
+        .pattern-lined { 
+            background-image: repeating-linear-gradient(transparent, transparent 6px, #cbd5e1 7px); 
+            background-position: 0 30px;
+        }
+        .pattern-grid { 
+            background-image: linear-gradient(#cbd5e1 1px, transparent 1px), linear-gradient(90deg, #cbd5e1 1px, transparent 1px); 
+            background-size: 5px 5px; 
+            background-position: 0 0;
+        }
+        .pattern-dotted { 
+            background-image: radial-gradient(circle, #94a3b8 1px, transparent 1px); 
+            background-size: 5px 5px; 
+            background-position: 0 0;
+        }
+
+        /* --- Front Cover (Openable) --- */
+        .front-cover-group {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            transform-origin: left center;
+            transform-style: preserve-3d;
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateZ(0); 
+        }
+        .front-cover-group.open {
+            transform: rotateY(-155deg);
+        }
+
+        .front-cover-outer {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: var(--cover-bg);
+            background-size: cover;
+            background-position: center;
+            border-radius: 4px 12px 12px 4px;
+            transform: translateZ(1px);
+            box-shadow: inset 4px 0 10px rgba(0,0,0,0.1), inset -2px 0 5px rgba(255,255,255,0.3);
+            overflow: hidden;
+        }
+        
+        .front-cover-inner {
+            width: 100%;
+            height: 100%;
+            background: #fff;
+            border-radius: 12px 4px 4px 12px;
+            transform: rotateY(180deg) translateZ(1px);
+            box-shadow: inset -10px 0 20px rgba(0,0,0,0.05);
+            overflow: hidden;
+        }
+
+        /* --- Elastic Band --- */
+        .elastic-band {
+            position: absolute;
+            right: 20px;
+            top: -1%;
+            height: 102%;
+            width: 12px;
+            background-color: var(--elastic-color);
+            border-radius: 2px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.2), inset 1px 0 2px rgba(255,255,255,0.2);
+            z-index: 10;
+            transition: background-color 0.3s ease, opacity 0.3s ease;
+        }
+        .front-cover-group.open .elastic-band { opacity: 0; }
+        .back-cover .elastic-band { left: 20px; right: auto; }
+
+        /* Cover Text Plate */
+        .cover-plate {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            text-align: center;
+            max-width: 85%;
+            transition: background 0.3s ease, border 0.3s ease, box-shadow 0.3s ease, padding 0.3s ease;
+            gap: 4px;
+            cursor: grab;
+            z-index: 4;
+            transform: translate(-50%, -50%);
+        }
+        .cover-plate:active { cursor: grabbing; }
+
+        .cover-text {
+            font-family: var(--font-family);
+            line-height: 1.1;
+            word-wrap: break-word;
+        }
+        .cover-subtitle {
+            font-family: 'Quicksand', sans-serif;
+            font-weight: 600;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* --- Texture Overlay --- */
+        .texture-overlay {
+            position: absolute; inset: 0;
+            border-radius: inherit;
+            pointer-events: none;
+            mix-blend-mode: multiply;
+            opacity: 0.35;
+            transition: opacity 0.3s, background 0.3s;
+            z-index: 1;
+        }
+        .texture-linen {
+            background-image: repeating-linear-gradient(0deg, rgba(0,0,0,0.07) 0px, rgba(0,0,0,0.07) 1px, transparent 1px, transparent 4px),
+                              repeating-linear-gradient(90deg, rgba(0,0,0,0.05) 0px, rgba(0,0,0,0.05) 1px, transparent 1px, transparent 4px);
+        }
+        .texture-leather {
+            background-image: repeating-radial-gradient(circle at 2px 2px, rgba(0,0,0,0.12) 1px, transparent 3px);
+            background-size: 8px 8px;
+        }
+
+        /* --- Finish Overlay --- */
+        .finish-overlay {
+            position: absolute; inset: 0;
+            border-radius: inherit;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 2;
+        }
+        .finish-glossy {
+            opacity: 1;
+            background: linear-gradient(135deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.1) 40%, transparent 60%);
+        }
+        .finish-holographic {
+            opacity: 0.6;
+            mix-blend-mode: overlay;
+            background: linear-gradient(135deg, #ff9de2, #a8d8ff, #b5f5ec, #fffab8, #ffd6a5, #ff9de2);
+            background-size: 300% 300%;
+            animation: holoShift 4s ease infinite;
+        }
+        @keyframes holoShift {
+            0%   { background-position: 0% 50%; }
+            50%  { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* --- Metallic Corners --- */
+        .corner-tl, .corner-tr, .corner-bl, .corner-br {
+            position: absolute;
+            width: 22px; height: 22px;
+            pointer-events: none;
+            display: none;
+            z-index: 5;
+        }
+        .corner-tl { top: 0; left: 0; background: linear-gradient(135deg, var(--corner-color-1) 0%, var(--corner-color-2) 50%, transparent 50%); }
+        .corner-tr { top: 0; right: 0; background: linear-gradient(225deg, var(--corner-color-1) 0%, var(--corner-color-2) 50%, transparent 50%); }
+        .corner-bl { bottom: 0; left: 0; background: linear-gradient(45deg, var(--corner-color-1) 0%, var(--corner-color-2) 50%, transparent 50%); }
+        .corner-br { bottom: 0; right: 0; background: linear-gradient(315deg, var(--corner-color-1) 0%, var(--corner-color-2) 50%, transparent 50%); }
+
+        /* --- Ribbon Bookmark --- */
+        .ribbon-bookmark {
+            position: absolute;
+            width: 10px;
+            height: 60px;
+            right: 30px;
+            bottom: -30px;
+            border-radius: 0 0 5px 5px;
+            z-index: 5;
+            display: none;
+            transform-origin: top center;
+            animation: ribbonSway 3s ease-in-out infinite;
+        }
+        @keyframes ribbonSway {
+            0%, 100% { transform: rotateZ(-3deg); }
+            50%       { transform: rotateZ(3deg); }
+        }
+
+        /* --- Spiral Binding --- */
+        .spiral-binding {
+            position: absolute;
+            left: -8px;
+            top: 0;
+            width: 16px;
+            height: 100%;
+            background: repeating-linear-gradient(
+                to bottom,
+                transparent 0px,
+                transparent 8px,
+                var(--spiral-color, #c0c0c0) 8px,
+                var(--spiral-color, #c0c0c0) 16px,
+                transparent 16px,
+                transparent 18px
+            );
+            border-radius: 8px;
+            display: none;
+            z-index: 10;
+        }
+
+        /* --- Page Flip --- */
+        .page-flip {
+            position: absolute;
+            width: 100%; height: 100%;
+            background: #fff;
+            border-radius: 0 8px 8px 0;
+            transform-origin: left center;
+            transform: rotateY(0deg);
+            transition: transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+            backface-visibility: hidden;
+            box-shadow: inset 10px 0 20px rgba(0,0,0,0.04);
+        }
+        .page-flip.flipped { transform: rotateY(-180deg); }
+
+        /* --- Foil Text Effects --- */
+        .foil-gold {
+            background: linear-gradient(90deg, #b8860b, #ffd700, #b8860b, #ffd700);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: foilShine 3s linear infinite;
+            filter: drop-shadow(0 0 3px rgba(255,215,0,0.5));
+        }
+        .foil-silver {
+            background: linear-gradient(90deg, #8e8e8e, #e8e8e8, #c0c0c0, #e8e8e8);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: foilShine 3s linear infinite;
+            filter: drop-shadow(0 0 3px rgba(200,200,200,0.5));
+        }
+        .foil-rosegold {
+            background: linear-gradient(90deg, #b76e79, #f4c7c3, #c9956c, #f4c7c3);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: foilShine 3s linear infinite;
+            filter: drop-shadow(0 0 3px rgba(201,149,108,0.5));
+        }
+        @keyframes foilShine {
+            0%   { background-position: 0% center; }
+            100% { background-position: 200% center; }
+        }
+
+        /* --- Dedication Page Styling --- */
+        .dedication-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            padding: 20px;
+            text-align: center;
+            font-family: 'Caveat', cursive;
+            font-size: 0.85rem;
+            color: #555;
+            line-height: 1.6;
+        }
+        .dedication-content .ded-ornament {
+            font-size: 1.4rem;
+            color: #EFA8B8;
+            margin-bottom: 8px;
+        }
+
+        /* --- Swatch Selector --- */
+        .color-swatch {
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: transform 0.15s ease, border-color 0.15s ease;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            flex-shrink: 0;
+        }
+        .color-swatch:hover { transform: scale(1.15); }
+        .color-swatch.selected { border-color: #637554; transform: scale(1.15); }
+        .swatch-custom-btn {
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            background: conic-gradient(#EFA8B8, #637554, #2C3E6B, #C9956C, #EFA8B8);
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: bold; color: white;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+            flex-shrink: 0;
+            transition: transform 0.15s ease;
+        }
+        .swatch-custom-btn:hover { transform: scale(1.15); }
+
+        /* --- Pill Radio Options --- */
+        .pill-option input[type="radio"] { display: none; }
+        .pill-option label {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 999px;
+            border: 2px solid #F5ECE5;
+            background: white;
+            font-size: 12px;
+            font-weight: 600;
+            color: #383838;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .pill-option input[type="radio"]:checked + label {
+            background: #637554;
+            border-color: #637554;
+            color: white;
+        }
+
+        /* --- Binding Card Toggle --- */
+        .binding-card input[type="radio"] { display: none; }
+        .binding-card label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            padding: 14px 10px;
+            border-radius: 14px;
+            border: 2px solid #F5ECE5;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 600;
+            color: #383838;
+        }
+        .binding-card input[type="radio"]:checked + label {
+            border-color: #637554;
+            background: #637554;
+            color: white;
+        }
+        .binding-card label i { font-size: 22px; }
+
+        @media (max-width: 768px) {
+            .scene { transform: scale(0.65); min-height: 350px; }
+        }
+
+        /* Image controls section */
+        #imageControls { transition: opacity 0.3s ease; }
+
+        /* Zoom hint */
+        .zoom-hint {
+            background: rgba(255,255,255,0.7);
+            backdrop-filter: blur(4px);
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #637554;
+            border: 1px solid rgba(99,117,84,0.2);
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <!-- Header -->
+    <header class="bg-white/80 backdrop-blur-md border-b border-blush-soft sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <a href="#" class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-blush-light border-2 border-blush flex items-center justify-center">
+                    <span class="font-script text-blush-dark font-bold text-xl">P</span>
+                </div>
+                <div>
+                    <span class="font-serif text-xl font-bold text-charcoal leading-none block">Papelia Studio</span>
+                    <span class="text-[9px] tracking-widest font-semibold text-sage uppercase block mt-0.5">Diseñador 3D Interactívo</span>
+                </div>
+            </a>
+            <a href="index.html" class="text-sm font-semibold text-charcoal hover:text-sage transition-colors"><i class="fa-solid fa-arrow-left mr-1"></i> Volver a tienda</a>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-grow flex flex-col md:flex-row w-full max-w-7xl mx-auto">
+        
+        <!-- Left Panel: 3D Preview -->
+        <div class="w-full md:w-1/2 lg:w-3/5 bg-cream-dark/30 relative flex flex-col border-r border-cream-dark overflow-hidden">
+            
+            <!-- Context UI -->
+            <div class="absolute top-4 left-4 right-4 flex justify-between items-start z-10 pointer-events-none">
+                <div class="flex flex-col gap-2">
+                    <div class="bg-white/70 backdrop-blur-sm px-4 py-2 rounded-full text-xs font-bold text-sage shadow-sm border border-sage/20 pointer-events-auto">
+                        <i class="fa-solid fa-hand-pointer mr-1"></i> Arrastra para rotar
+                    </div>
+                    <div class="zoom-hint pointer-events-none">
+                        <i class="fa-solid fa-magnifying-glass mr-1"></i> Rueda del mouse para zoom
+                    </div>
+                </div>
+                <button id="toggleOpenBtn" class="bg-blush hover:bg-blush-dark text-white px-4 py-2 rounded-full text-xs font-bold shadow-md transition-colors pointer-events-auto">
+                    <i class="fa-solid fa-book-open mr-1"></i> <span id="toggleOpenText">Abrir Agenda</span>
+                </button>
+            </div>
+            
+            <div class="scene" id="scene">
+                <!-- Scale Wrapper (handles zoom) -->
+                <div id="bookScaler">
+                    <!-- Trackball Wrapper (handles rotation + float animation) -->
+                    <div id="bookWrapper" class="floating">
+                        <!-- Book Object -->
+                        <div class="book-container" id="bookModel">
+                            
+                            <!-- Back Cover -->
+                            <div class="face back-cover">
+                                <div class="elastic-band"></div>
+                            </div>
+                            
+                            <!-- Spine (Classic) -->
+                            <div class="face book-spine" id="classicSpine"></div>
+
+                            <!-- Spiral Binding (hidden by default) -->
+                            <div class="spiral-binding" id="spiralBinding"></div>
+                            
+                            <!-- Pages Block -->
+                            <div class="face pages-block" id="pagesBlock">
+                                <div class="face pages-right" id="pagesRight"></div>
+                                <div class="face pages-top" id="pagesTop"></div>
+                                <div class="face pages-bottom" id="pagesBottom"></div>
+
+                                <!-- Ribbon Bookmark -->
+                                <div class="ribbon-bookmark" id="ribbonBookmark"></div>
+                                
+                                <!-- The Internal Page with Pattern -->
+                                <div class="face first-page pattern-blank" id="internalPage">
+                                    <!-- Dated Page Overlay -->
+                                    <div id="pageFormatOverlay" class="absolute top-4 right-5 opacity-0 transition-opacity text-[9px] text-charcoal/60 font-sans text-right hidden">
+                                        <div class="border-b border-charcoal/30 pb-0.5 w-16 mb-1.5 flex justify-between"><span>Fecha:</span> <span class="text-[7px]">/ / 20__</span></div>
+                                        <div class="border-b border-charcoal/30 pb-0.5 w-16 flex justify-between"><span>Día:</span> </div>
+                                    </div>
+                                </div>
+
+                                <!-- Page Flip Layers -->
+                                <div class="face page-flip" id="pageFlip1" style="z-index: 3; transform: translateZ(2px);"></div>
+                                <div class="face page-flip" id="pageFlip2" style="z-index: 2; transform: translateZ(1px);"></div>
+                            </div>
+                            
+                            <!-- Front Cover Group -->
+                            <div class="front-cover-group" id="frontCoverGroup">
+                                <div class="face front-cover-inner" id="frontCoverInner"></div>
+                                
+                                <!-- Front Cover Outer -->
+                                <div class="face front-cover-outer" id="frontCoverOuter">
+                                    <div class="elastic-band"></div>
+
+                                    <!-- Texture Overlay -->
+                                    <div class="texture-overlay" id="textureOverlay"></div>
+
+                                    <!-- Finish Overlay -->
+                                    <div class="finish-overlay" id="finishOverlay"></div>
+
+                                    <!-- Metallic Corners -->
+                                    <div class="corner-tl" id="cornerTL"></div>
+                                    <div class="corner-tr" id="cornerTR"></div>
+                                    <div class="corner-bl" id="cornerBL"></div>
+                                    <div class="corner-br" id="cornerBR"></div>
+
+                                    <!-- Cover Plate (Draggable Text) -->
+                                    <div class="cover-plate" id="coverPlate" style="left: 50%; top: 50%;">
+                                        <div class="cover-text" id="coverTextDisplay">Mi Agenda 2026</div>
+                                        <div class="cover-subtitle" id="coverSubtitleDisplay">Diseño Exclusivo</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center pb-4 text-charcoal/50 text-xs">
+                Visualización 3D generada en tiempo real. Arrastra el texto en la portada para posicionarlo.
+            </div>
+        </div>
+
+        <!-- Right Panel: Controls -->
+        <div class="w-full md:w-1/2 lg:w-2/5 bg-white p-6 sm:p-8 overflow-y-auto" style="max-height: calc(100vh - 64px);">
+            <div class="mb-8">
+                <span class="font-script text-2xl text-blush-dark block mb-1">Crea tu magia</span>
+                <h1 class="font-serif text-3xl font-bold text-charcoal">Personaliza tu Agenda</h1>
+                <p class="text-sm text-charcoal/70 mt-2">Ajusta cada detalle. La vista 3D se actualizará al instante.</p>
+            </div>
+
+            <form id="designerForm" class="space-y-6">
+                
+                <!-- 1. Tamaño & Formato -->
+                <div class="bg-cream p-5 rounded-2xl border border-cream-dark">
+                    <label class="block text-sm font-bold text-charcoal mb-3"><i class="fa-solid fa-ruler-combined text-sage mr-2"></i> 1. Tamaño de la agenda</label>
+                    <div class="grid grid-cols-3 gap-3 mb-4">
+                        <label class="cursor-pointer relative">
+                            <input type="radio" name="bookSize" value="A5" class="peer sr-only" checked>
+                            <div class="text-center p-3 rounded-xl border-2 border-transparent bg-white shadow-sm peer-checked:border-sage peer-checked:bg-sage/10 transition-all">
+                                <span class="block font-bold text-sm text-charcoal">A5</span>
+                                <span class="text-[10px] text-charcoal/60">15x21 cm</span>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer relative">
+                            <input type="radio" name="bookSize" value="B5" class="peer sr-only">
+                            <div class="text-center p-3 rounded-xl border-2 border-transparent bg-white shadow-sm peer-checked:border-sage peer-checked:bg-sage/10 transition-all">
+                                <span class="block font-bold text-sm text-charcoal">B5</span>
+                                <span class="text-[10px] text-charcoal/60">18x25 cm</span>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer relative">
+                            <input type="radio" name="bookSize" value="Pocket" class="peer sr-only">
+                            <div class="text-center p-3 rounded-xl border-2 border-transparent bg-white shadow-sm peer-checked:border-sage peer-checked:bg-sage/10 transition-all">
+                                <span class="block font-bold text-sm text-charcoal">Pocket</span>
+                                <span class="text-[10px] text-charcoal/60">9x14 cm</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 2. Diseño de Portada -->
+                <div class="bg-cream p-5 rounded-2xl border border-cream-dark space-y-4">
+                    <label class="block text-sm font-bold text-charcoal"><i class="fa-solid fa-palette text-sage mr-2"></i> 2. Diseño de Portada</label>
+
+                    <!-- Color Roulette -->
+                    <div>
+                        <label class="block text-xs font-semibold text-charcoal mb-2">Color de Portada</label>
+                        <div class="flex items-center gap-2 flex-wrap" id="swatchRow">
+                            <div class="color-swatch selected" data-color="#EFA8B8" style="background:#EFA8B8;" title="Rosa Blush"></div>
+                            <div class="color-swatch" data-color="#637554" style="background:#637554;" title="Verde Sage"></div>
+                            <div class="color-swatch" data-color="#FCF8F5" style="background:#FCF8F5; border-color: #ddd;" title="Crema"></div>
+                            <div class="color-swatch" data-color="#383838" style="background:#383838;" title="Carbón"></div>
+                            <div class="color-swatch" data-color="#2C3E6B" style="background:#2C3E6B;" title="Azul Navy"></div>
+                            <div class="color-swatch" data-color="#C9956C" style="background:#C9956C;" title="Oro Rosa"></div>
+                            <div class="color-swatch" data-color="#A89EC9" style="background:#A89EC9;" title="Lavanda"></div>
+                            <div class="color-swatch" data-color="#D4C5A9" style="background:#D4C5A9;" title="Arena"></div>
+                            <div class="swatch-custom-btn" id="swatchCustomBtn" title="Color personalizado">+</div>
+                            <input type="color" id="customColorPicker" value="#EFA8B8" style="display:none; position:absolute;">
+                        </div>
+                    </div>
+
+                    <!-- Upload Imagen -->
+                    <div class="border-t border-cream-dark pt-4">
+                        <label class="block text-xs font-semibold text-charcoal mb-2">O sube tu propia imagen <span class="text-charcoal/50">(Anula el color)</span></label>
+                        <input type="file" id="coverImageUpload" accept="image/*" class="block w-full text-xs text-charcoal/70 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-blush-light file:text-blush-dark hover:file:bg-blush transition-colors cursor-pointer">
+                    </div>
+
+                    <!-- Image Controls (shown only when image uploaded) -->
+                    <div id="imageControls" class="border-t border-cream-dark pt-4 space-y-3 hidden">
+                        <label class="block text-xs font-semibold text-charcoal">Ajustes de imagen</label>
+                        <div>
+                            <div class="flex justify-between text-[10px] text-charcoal/60 mb-1"><span>Zoom imagen</span><span id="imageZoomVal">100%</span></div>
+                            <input type="range" id="imageZoomSlider" min="80" max="200" step="5" value="100" class="w-full accent-sage">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <div class="text-[10px] text-charcoal/60 mb-1">Pan Horizontal</div>
+                                <div class="flex items-center gap-2">
+                                    <button type="button" id="panXMinus" class="w-8 h-8 rounded-full bg-white border border-cream-dark text-sage font-bold hover:bg-sage hover:text-white transition-colors">−</button>
+                                    <span id="panXVal" class="text-xs flex-1 text-center font-semibold">50</span>
+                                    <button type="button" id="panXPlus" class="w-8 h-8 rounded-full bg-white border border-cream-dark text-sage font-bold hover:bg-sage hover:text-white transition-colors">+</button>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-[10px] text-charcoal/60 mb-1">Pan Vertical</div>
+                                <div class="flex items-center gap-2">
+                                    <button type="button" id="panYMinus" class="w-8 h-8 rounded-full bg-white border border-cream-dark text-sage font-bold hover:bg-sage hover:text-white transition-colors">−</button>
+                                    <span id="panYVal" class="text-xs flex-1 text-center font-semibold">50</span>
+                                    <button type="button" id="panYPlus" class="w-8 h-8 rounded-full bg-white border border-cream-dark text-sage font-bold hover:bg-sage hover:text-white transition-colors">+</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Apariencia de Portada -->
+                <div class="bg-cream p-5 rounded-2xl border border-cream-dark space-y-4">
+                    <label class="block text-sm font-bold text-charcoal"><i class="fa-solid fa-wand-magic-sparkles text-sage mr-2"></i> 3. Apariencia de Portada</label>
+
+                    <!-- Textura del Material -->
+                    <div>
+                        <label class="block text-xs font-semibold text-charcoal mb-1">Textura del Material</label>
+                        <select id="textureSelect" class="w-full px-4 py-2.5 rounded-xl border border-blush-soft bg-white text-sm focus:outline-none focus:border-sage text-charcoal">
+                            <option value="smooth">Suave (Liso)</option>
+                            <option value="linen">Lino (Tela)</option>
+                            <option value="leather">Cuero Sintético</option>
+                        </select>
+                    </div>
+
+                    <!-- Acabado de Portada -->
+                    <div>
+                        <label class="block text-xs font-semibold text-charcoal mb-2">Acabado de Portada</label>
+                        <div class="flex gap-2 flex-wrap">
+                            <div class="pill-option">
+                                <input type="radio" name="coverFinish" id="finishMatte" value="matte" checked>
+                                <label for="finishMatte">Mate</label>
+                            </div>
+                            <div class="pill-option">
+                                <input type="radio" name="coverFinish" id="finishGlossy" value="glossy">
+                                <label for="finishGlossy">Brillante</label>
+                            </div>
+                            <div class="pill-option">
+                                <input type="radio" name="coverFinish" id="finishHolo" value="holographic">
+                                <label for="finishHolo">Holográfico</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bordes Metalizados -->
+                    <div>
+                        <label class="block text-xs font-semibold text-charcoal mb-2">Bordes Metalizados de Páginas</label>
+                        <div class="flex gap-2 flex-wrap">
+                            <div class="pill-option">
+                                <input type="radio" name="pageEdge" id="edgeNone" value="none" checked>
+                                <label for="edgeNone">Sin bordes</label>
+                            </div>
+                            <div class="pill-option">
+                                <input type="radio" name="pageEdge" id="edgeGold" value="gold">
+                                <label for="edgeGold">Oro</label>
+                            </div>
+                            <div class="pill-option">
+                                <input type="radio" name="pageEdge" id="edgeSilver" value="silver">
+                                <label for="edgeSilver">Plata</label>
+                            </div>
+                            <div class="pill-option">
+                                <input type="radio" name="pageEdge" id="edgeRosegold" value="rosegold">
+                                <label for="edgeRosegold">Oro Rosa</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. Encuadernación y Accesorios -->
+                <div class="bg-cream p-5 rounded-2xl border border-cream-dark space-y-4">
+                    <label class="block text-sm font-bold text-charcoal"><i class="fa-solid fa-book-bookmark text-sage mr-2"></i> 4. Encuadernación y Accesorios</label>
+
+                    <!-- Tipo de Encuadernación -->
+                    <div>
+                        <label class="block text-xs font-semibold text-charcoal mb-2">Tipo de Encuadernación</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="binding-card">
+                                <input type="radio" name="bindingType" id="bindingClassic" value="classic" checked>
+                                <label for="bindingClassic">
+                                    <i class="fa-solid fa-book"></i>
+                                    Empastado Clásico
+                                </label>
+                            </div>
+                            <div class="binding-card">
+                                <input type="radio" name="bindingType" id="bindingSpiral" value="spiral">
+                                <label for="bindingSpiral">
+                                    <i class="fa-solid fa-circle-nodes"></i>
+                                    Anillado Metálico
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Esquineros Metálicos -->
+                    <div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <input type="checkbox" id="cornersToggle" class="accent-sage w-4 h-4 rounded">
+                            <label for="cornersToggle" class="text-xs font-semibold text-charcoal cursor-pointer">Esquineros Metálicos</label>
+                        </div>
+                        <div id="cornerColorOptions" class="flex gap-2 flex-wrap hidden">
+                            <div class="pill-option">
+                                <input type="radio" name="cornerColor" id="cornerGold" value="gold" checked>
+                                <label for="cornerGold">Oro</label>
+                            </div>
+                            <div class="pill-option">
+                                <input type="radio" name="cornerColor" id="cornerSilver" value="silver">
+                                <label for="cornerSilver">Plata</label>
+                            </div>
+                            <div class="pill-option">
+                                <input type="radio" name="cornerColor" id="cornerRosegold" value="rosegold">
+                                <label for="cornerRosegold">Oro Rosa</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cinta Marcadora -->
+                    <div>
+                        <label class="block text-xs font-semibold text-charcoal mb-1">Cinta Marcadora</label>
+                        <select id="ribbonSelect" class="w-full px-4 py-2.5 rounded-xl border border-blush-soft bg-white text-sm focus:outline-none focus:border-sage text-charcoal">
+                            <option value="none">Sin cinta</option>
+                            <option value="blush">Rosa Blush</option>
+                            <option value="sage">Verde Sage</option>
+                            <option value="cream">Crema</option>
+                            <option value="black">Negro</option>
+                            <option value="gold">Dorado</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 5. Interior de la Agenda -->
+                <div class="bg-cream p-5 rounded-2xl border border-cream-dark space-y-4">
+                    <label class="block text-sm font-bold text-charcoal"><i class="fa-solid fa-file-lines text-sage mr-2"></i> 5. Interior de la Agenda</label>
+                    
+                    <div>
+                        <label class="block text-xs font-semibold text-charcoal mb-1">Patrón de las hojas</label>
+                        <select id="pagePatternSelect" class="w-full px-4 py-2.5 rounded-xl border border-blush-soft bg-white text-sm focus:outline-none focus:border-sage text-charcoal">
+                            <option value="pattern-blank">Hojas Blancas (Lisas)</option>
+                            <option value="pattern-lined">Hojas Rayadas (7mm)</option>
+                            <option value="pattern-grid">Hojas Cuadriculadas (5mm)</option>
+                            <option value="pattern-dotted">Hojas Punteadas (5mm)</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-semibold text-charcoal mb-1">Formato de fecha</label>
+                        <select id="pageFormatSelect" class="w-full px-4 py-2.5 rounded-xl border border-blush-soft bg-white text-sm focus:outline-none focus:border-sage text-charcoal">
+                            <option value="blank">Solo el patrón (Sin fechas)</option>
+                            <option value="dated">Fechado (Con espacio para fecha arriba)</option>
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-charcoal mb-1">Cantidad (Páginas)</label>
+                            <select id="pageCountSelect" class="w-full px-4 py-2.5 rounded-xl border border-blush-soft bg-white text-sm focus:outline-none focus:border-sage text-charcoal">
+                                <option value="50">50 Páginas</option>
+                                <option value="100" selected>100 Páginas</option>
+                                <option value="150">150 Páginas</option>
+                                <option value="200">200 Páginas</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-charcoal mb-1">Grosor (Gramaje)</label>
+                            <select id="paperThicknessSelect" class="w-full px-4 py-2.5 rounded-xl border border-blush-soft bg-white text-sm focus:outline-none focus:border-sage text-charcoal">
+                                <option value="90" selected>90 gramos</option>
+                                <option value="106">106 gramos</option>
+                                <option value="140">140 gramos</option>
+                            </select>
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-charcoal/60 leading-tight">Nota: La cantidad de páginas y el grosor del papel afectarán el tamaño del lomo de tu agenda física y del modelo 3D.</p>
+                </div>
+
+                <!-- 6. Elástico -->
+                <div class="bg-cream p-5 rounded-2xl border border-cream-dark">
+                    <label class="block text-sm font-bold text-charcoal mb-3"><i class="fa-solid fa-grip-lines-vertical text-sage mr-2"></i> 6. Elástico Cierre</label>
+                    <div class="flex items-center gap-4">
+                        <input type="color" id="elasticColorPicker" value="#383838" class="w-12 h-12 p-1 rounded-xl bg-white border border-blush-soft cursor-pointer">
+                        <span class="text-xs text-charcoal/70">Selecciona el color del elástico que mejor combine.</span>
+                    </div>
+                </div>
+
+                <!-- 7. Textos de la Portada -->
+                <div class="bg-cream p-5 rounded-2xl border border-cream-dark space-y-4">
+                    <label class="block text-sm font-bold text-charcoal"><i class="fa-solid fa-pen-nib text-sage mr-2"></i> 7. Textos de la Portada</label>
+                    
+                    <div class="grid grid-cols-1 gap-3">
+                        <input type="text" id="customTextInput" maxlength="30" placeholder="Título (Ej: Mi Agenda 2026)" value="Mi Agenda 2026" class="w-full px-4 py-2.5 rounded-xl border border-blush-soft bg-white text-sm focus:outline-none focus:border-sage">
+                        <input type="text" id="customSubtitleInput" maxlength="40" placeholder="Subtítulo (Opcional)" value="Diseño Exclusivo" class="w-full px-4 py-2.5 rounded-xl border border-blush-soft bg-white text-sm focus:outline-none focus:border-sage">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-charcoal mb-1">Estilo de letra</label>
+                        <select id="fontSelect" class="w-full px-4 py-2.5 rounded-xl border border-blush-soft bg-white text-sm focus:outline-none focus:border-sage font-serif">
+                            <option value="Cormorant Garamond" class="font-serif">Cormorant</option>
+                            <option value="Quicksand" class="font-sans">Quicksand</option>
+                            <option value="Caveat" class="font-script">Caveat</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-xs font-semibold text-charcoal mb-1">
+                            <span>Tamaño de Letra</span>
+                            <span id="fontSizeValDisplay">1.0×</span>
+                        </div>
+                        <input type="range" id="fontSizeSlider" min="0.6" max="2.0" step="0.05" value="1.0" class="w-full accent-sage">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-charcoal mb-1">Efecto de Texto</label>
+                        <select id="textEffectSelect" class="w-full px-4 py-2.5 rounded-xl border border-blush-soft bg-white text-sm focus:outline-none focus:border-sage text-charcoal">
+                            <option value="ink-dark">Tinta (Carbón)</option>
+                            <option value="ink-light">Tinta (Blanco)</option>
+                            <option value="foil-gold">Foil Dorado</option>
+                            <option value="foil-silver">Foil Plata</option>
+                            <option value="foil-rosegold">Foil Oro Rosa</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <p class="text-xs text-charcoal/60 italic"><i class="fa-solid fa-hand-pointer mr-1 text-blush"></i> Arrastra el texto en la portada 3D para posicionarlo</p>
+                    </div>
+                    
+                    <div class="flex items-center gap-2 pt-2 border-t border-cream-dark">
+                        <input type="checkbox" id="showPlateToggle" checked class="accent-sage w-4 h-4 rounded text-sage focus:ring-sage">
+                        <label for="showPlateToggle" class="text-xs text-charcoal font-medium cursor-pointer">Mostrar recuadro de fondo tras el texto</label>
+                    </div>
+                    <p class="text-[10px] text-charcoal/60 leading-tight">Tip: Borra todo el texto para dejar la portada completamente limpia.</p>
+                </div>
+
+                <!-- 8. Página de Dedicatoria -->
+                <div class="bg-cream p-5 rounded-2xl border border-cream-dark space-y-3">
+                    <label class="block text-sm font-bold text-charcoal"><i class="fa-solid fa-heart text-sage mr-2"></i> 8. Página de Dedicatoria</label>
+                    <p class="text-[10px] text-charcoal/60 leading-tight">Aparece en la página interior al abrir la agenda.</p>
+                    <textarea id="dedicationText" maxlength="200" placeholder="Escribe una dedicatoria personalizada..." class="w-full px-4 py-3 rounded-xl border border-blush-soft bg-white text-sm focus:outline-none focus:border-sage text-charcoal resize-none" rows="4"></textarea>
+                </div>
+
+                <!-- Price & Submit -->
+                <div class="pt-4 border-t border-cream-dark flex items-center justify-between">
+                    <div>
+                        <span class="block text-xs font-semibold text-charcoal/60">Precio final estimado</span>
+                        <span class="font-bold text-sage text-2xl block" id="priceDisplay">$18.990</span>
+                    </div>
+                    <button type="button" onclick="addToCart()" class="bg-blush hover:bg-blush-dark text-white font-bold px-8 py-3.5 rounded-full shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-check"></i> Guardar Diseño
+                    </button>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <script>
+        // =========================================================
+        // Core Configuration Data
+        // =========================================================
+        const config = {
+            sizes: {
+                'A5':     { w: '210px', h: '297px', price: 18990 },
+                'B5':     { w: '250px', h: '350px', price: 22990 },
+                'Pocket': { w: '140px', h: '200px', price: 14990 }
+            },
+            fonts: {
+                'Cormorant Garamond': '"Cormorant Garamond", serif',
+                'Quicksand':          '"Quicksand", sans-serif',
+                'Caveat':             '"Caveat", cursive'
+            },
+            ribbonColors: {
+                'none':  null,
+                'blush': '#EFA8B8',
+                'sage':  '#637554',
+                'cream': '#FCF8F5',
+                'black': '#383838',
+                'gold':  '#d4af37'
+            },
+            cornerColors: {
+                'gold':    { c1: '#b8860b', c2: '#ffd700' },
+                'silver':  { c1: '#8e8e8e', c2: '#e8e8e8' },
+                'rosegold':{ c1: '#b76e79', c2: '#f4c7c3' }
+            },
+            edgeGradients: {
+                'none':    null,
+                'gold':    'repeating-linear-gradient(to right, #d4af37, #ffd700 2px, #b8860b 2px, #b8860b 4px)',
+                'silver':  'repeating-linear-gradient(to right, #8e8e8e, #e8e8e8 2px, #c0c0c0 2px, #c0c0c0 4px)',
+                'rosegold':'repeating-linear-gradient(to right, #b76e79, #f4c7c3 2px, #c9956c 2px, #c9956c 4px)'
+            }
+        };
+
+        // =========================================================
+        // State Variables
+        // =========================================================
+        let isBookOpen       = false;
+        let uploadedImageUrl = null;
+        let currentCoverColor = '#EFA8B8';
+
+        // Trackball
+        let isDragging    = false;
+        let prevMouse     = { x: 0, y: 0 };
+        let currentRotation = { x: 25, y: -25 };
+
+        // Zoom
+        let currentZoom = 1.0;
+
+        // Image pan/zoom
+        let imagePanX = 50, imagePanY = 50, imageZoom = 100;
+
+        // Text dragging
+        let textDragActive = false;
+        let textDragOffset = { x: 0, y: 0 };
+        let coverPlatePos  = { x: 50, y: 50 }; // percent
+
+        // Page flipping
+        let flippedPages = 0;
+
+        // =========================================================
+        // DOM Elements
+        // =========================================================
+        const bookModel         = document.getElementById('bookModel');
+        const bookWrapper       = document.getElementById('bookWrapper');
+        const bookScaler        = document.getElementById('bookScaler');
+        const scene             = document.getElementById('scene');
+        const frontCoverGroup   = document.getElementById('frontCoverGroup');
+        const internalPage      = document.getElementById('internalPage');
+        const frontCoverOuter   = document.getElementById('frontCoverOuter');
+        const frontCoverInner   = document.getElementById('frontCoverInner');
+        const pageFormatOverlay = document.getElementById('pageFormatOverlay');
+        const coverTextDisplay  = document.getElementById('coverTextDisplay');
+        const coverSubtitleDisplay = document.getElementById('coverSubtitleDisplay');
+        const coverPlate        = document.getElementById('coverPlate');
+        const priceDisplay      = document.getElementById('priceDisplay');
+        const form              = document.getElementById('designerForm');
+        const toggleOpenBtn     = document.getElementById('toggleOpenBtn');
+        const toggleOpenText    = document.getElementById('toggleOpenText');
+        const textureOverlay    = document.getElementById('textureOverlay');
+        const finishOverlay     = document.getElementById('finishOverlay');
+        const classicSpine      = document.getElementById('classicSpine');
+        const spiralBinding     = document.getElementById('spiralBinding');
+        const ribbonBookmark    = document.getElementById('ribbonBookmark');
+        const pagesRight        = document.getElementById('pagesRight');
+        const pagesTop          = document.getElementById('pagesTop');
+        const pagesBottom       = document.getElementById('pagesBottom');
+        const corners           = {
+            tl: document.getElementById('cornerTL'),
+            tr: document.getElementById('cornerTR'),
+            bl: document.getElementById('cornerBL'),
+            br: document.getElementById('cornerBR')
+        };
+        const pageFlip1 = document.getElementById('pageFlip1');
+        const pageFlip2 = document.getElementById('pageFlip2');
+
+        // =========================================================
+        // Initialization
+        // =========================================================
+        function init() {
+            attachListeners();
+            updateAll();
+        }
+
+        // =========================================================
+        // Attach Event Listeners
+        // =========================================================
+        function attachListeners() {
+
+            // --- Trackball Rotation ---
+            scene.addEventListener('mousedown', (e) => {
+                // Don't start book drag if dragging text plate
+                if (e.target === coverPlate || coverPlate.contains(e.target)) return;
+                isDragging = true;
+                bookWrapper.classList.remove('floating');
+                bookWrapper.style.transition = 'none';
+                prevMouse = { x: e.clientX, y: e.clientY };
+            });
+            window.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                const deltaX = e.clientX - prevMouse.x;
+                const deltaY = e.clientY - prevMouse.y;
+                currentRotation.y += deltaX * 0.5;
+                currentRotation.x -= deltaY * 0.5;
+                currentRotation.x = Math.max(-80, Math.min(80, currentRotation.x));
+                bookWrapper.style.transform = `rotateX(${currentRotation.x}deg) rotateY(${currentRotation.y}deg)`;
+                prevMouse = { x: e.clientX, y: e.clientY };
+            });
+            window.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    bookWrapper.style.transition = 'transform 0.1s ease-out';
+                }
+            });
+
+            // --- Mouse Wheel Zoom ---
+            scene.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                currentZoom += e.deltaY > 0 ? -0.08 : 0.08;
+                currentZoom = Math.max(0.5, Math.min(2.0, currentZoom));
+                bookScaler.style.transform = `scale(${currentZoom})`;
+            }, { passive: false });
+
+            // --- Open/Close Toggle ---
+            toggleOpenBtn.addEventListener('click', () => {
+                isBookOpen = !isBookOpen;
+                if (isBookOpen) {
+                    frontCoverGroup.classList.add('open');
+                    toggleOpenBtn.innerHTML = '<i class="fa-solid fa-book mr-1"></i> <span id="toggleOpenText">Cerrar Agenda</span>';
+                    if (currentRotation.y < 0) {
+                        currentRotation.y = 15;
+                        currentRotation.x = 20;
+                        bookWrapper.style.transition = 'transform 0.8s ease';
+                        bookWrapper.style.transform = `rotateX(${currentRotation.x}deg) rotateY(${currentRotation.y}deg)`;
+                    }
+                    // Reset page flips on open
+                    flippedPages = 0;
+                    pageFlip1.classList.remove('flipped');
+                    pageFlip2.classList.remove('flipped');
+                    updateDedicationPage();
+                } else {
+                    frontCoverGroup.classList.remove('open');
+                    toggleOpenBtn.innerHTML = '<i class="fa-solid fa-book-open mr-1"></i> <span id="toggleOpenText">Abrir Agenda</span>';
+                }
+            });
+
+            // --- Page Flipping Click ---
+            document.getElementById('pagesBlock').addEventListener('click', (e) => {
+                if (!isBookOpen) return;
+                const rect = document.getElementById('pagesBlock').getBoundingClientRect();
+                const clickX = e.clientX - rect.left;
+                if (clickX < rect.width / 2) return; // only right half
+                if (flippedPages < 2) {
+                    flippedPages++;
+                    if (flippedPages === 1) pageFlip1.classList.add('flipped');
+                    if (flippedPages === 2) pageFlip2.classList.add('flipped');
+                } else {
+                    flippedPages = 0;
+                    pageFlip1.classList.remove('flipped');
+                    pageFlip2.classList.remove('flipped');
+                }
+            });
+
+            // --- Draggable Cover Text ---
+            frontCoverOuter.addEventListener('pointerdown', (e) => {
+                if (e.target === coverPlate || coverPlate.contains(e.target)) {
+                    textDragActive = true;
+                    frontCoverOuter.setPointerCapture(e.pointerId);
+                    const rect = frontCoverOuter.getBoundingClientRect();
+                    const plateX = (coverPlatePos.x / 100) * rect.width;
+                    const plateY = (coverPlatePos.y / 100) * rect.height;
+                    textDragOffset.x = e.clientX - rect.left - plateX;
+                    textDragOffset.y = e.clientY - rect.top  - plateY;
+                    coverPlate.style.cursor = 'grabbing';
+                    e.stopPropagation();
+                }
+            });
+            frontCoverOuter.addEventListener('pointermove', (e) => {
+                if (!textDragActive) return;
+                const rect = frontCoverOuter.getBoundingClientRect();
+                let newX = e.clientX - rect.left - textDragOffset.x;
+                let newY = e.clientY - rect.top  - textDragOffset.y;
+                // Clamp to cover bounds
+                newX = Math.max(0, Math.min(rect.width, newX));
+                newY = Math.max(0, Math.min(rect.height, newY));
+                coverPlatePos.x = (newX / rect.width) * 100;
+                coverPlatePos.y = (newY / rect.height) * 100;
+                coverPlate.style.left = `${coverPlatePos.x}%`;
+                coverPlate.style.top  = `${coverPlatePos.y}%`;
+            });
+            frontCoverOuter.addEventListener('pointerup', () => {
+                textDragActive = false;
+                coverPlate.style.cursor = 'grab';
+            });
+
+            // --- Color Swatches ---
+            document.getElementById('swatchRow').addEventListener('click', (e) => {
+                const swatch = e.target.closest('.color-swatch');
+                if (!swatch) return;
+                document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+                swatch.classList.add('selected');
+                currentCoverColor = swatch.dataset.color;
+                uploadedImageUrl = null;
+                document.getElementById('coverImageUpload').value = '';
+                updateAll();
+            });
+
+            // --- Custom Color Picker ---
+            const swatchCustomBtn = document.getElementById('swatchCustomBtn');
+            const customColorPicker = document.getElementById('customColorPicker');
+            swatchCustomBtn.addEventListener('click', () => {
+                customColorPicker.click();
+            });
+            customColorPicker.addEventListener('input', (e) => {
+                currentCoverColor = e.target.value;
+                document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+                uploadedImageUrl = null;
+                document.getElementById('coverImageUpload').value = '';
+                updateAll();
+            });
+
+            // --- Image Upload ---
+            document.getElementById('coverImageUpload').addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        uploadedImageUrl = event.target.result;
+                        document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+                        updateAll();
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            // --- Image Controls ---
+            document.getElementById('imageZoomSlider').addEventListener('input', (e) => {
+                imageZoom = parseInt(e.target.value);
+                document.getElementById('imageZoomVal').textContent = imageZoom + '%';
+                updateAll();
+            });
+            document.getElementById('panXMinus').addEventListener('click', () => { imagePanX = Math.max(0, imagePanX - 5); document.getElementById('panXVal').textContent = imagePanX; updateAll(); });
+            document.getElementById('panXPlus').addEventListener('click',  () => { imagePanX = Math.min(100, imagePanX + 5); document.getElementById('panXVal').textContent = imagePanX; updateAll(); });
+            document.getElementById('panYMinus').addEventListener('click', () => { imagePanY = Math.max(0, imagePanY - 5); document.getElementById('panYVal').textContent = imagePanY; updateAll(); });
+            document.getElementById('panYPlus').addEventListener('click',  () => { imagePanY = Math.min(100, imagePanY + 5); document.getElementById('panYVal').textContent = imagePanY; updateAll(); });
+
+            // --- Corners Toggle ---
+            document.getElementById('cornersToggle').addEventListener('change', (e) => {
+                document.getElementById('cornerColorOptions').classList.toggle('hidden', !e.target.checked);
+                updateAll();
+            });
+
+            // --- All other inputs ---
+            const inputIds = [
+                'pagePatternSelect', 'pageFormatSelect', 'pageCountSelect', 'paperThicknessSelect',
+                'elasticColorPicker', 'customTextInput', 'customSubtitleInput',
+                'fontSelect', 'showPlateToggle', 'textureSelect', 'ribbonSelect',
+                'textEffectSelect', 'fontSizeSlider', 'dedicationText'
+            ];
+            inputIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.addEventListener(el.tagName === 'SELECT' || el.type === 'checkbox' || el.type === 'color' ? 'change' : 'input', updateAll);
+            });
+
+            // Pill radio groups
+            form.querySelectorAll('input[type="radio"]').forEach(radio => {
+                radio.addEventListener('change', updateAll);
+            });
+        }
+
+        // =========================================================
+        // Main Update Function
+        // =========================================================
+        function updateAll() {
+
+            // --- 1. Apply Size ---
+            const sizeVal = form.querySelector('input[name="bookSize"]:checked').value;
+            bookModel.style.setProperty('--book-w', config.sizes[sizeVal].w);
+            bookModel.style.setProperty('--book-h', config.sizes[sizeVal].h);
+
+            // --- 2. Dynamic Book Thickness ---
+            const pages = parseInt(document.getElementById('pageCountSelect').value);
+            const grams = parseInt(document.getElementById('paperThicknessSelect').value);
+            const thicknessPx = 4 + (pages / 50) * (grams / 90) * 4;
+            bookModel.style.setProperty('--book-d', `${thicknessPx}px`);
+
+            // --- 3. Price ---
+            let basePrice = config.sizes[sizeVal].price;
+            if (pages > 100) basePrice += (pages - 100) * 20;
+            if (grams > 90) basePrice += 2000;
+            priceDisplay.innerText = '$' + basePrice.toLocaleString('es-CL');
+
+            // --- 4. Cover Background ---
+            if (uploadedImageUrl) {
+                frontCoverOuter.style.backgroundImage = `url(${uploadedImageUrl})`;
+                frontCoverOuter.style.backgroundSize  = `${imageZoom}%`;
+                frontCoverOuter.style.backgroundPosition = `${imagePanX}% ${imagePanY}%`;
+                bookModel.style.setProperty('--cover-bg', `url(${uploadedImageUrl})`);
+                // Show image controls
+                document.getElementById('imageControls').classList.remove('hidden');
+            } else {
+                frontCoverOuter.style.backgroundImage = 'none';
+                frontCoverOuter.style.backgroundColor = currentCoverColor;
+                bookModel.style.setProperty('--cover-bg', currentCoverColor);
+                document.getElementById('imageControls').classList.add('hidden');
+            }
+
+            // --- 5. Elastic Color ---
+            const elasticColor = document.getElementById('elasticColorPicker').value;
+            bookModel.style.setProperty('--elastic-color', elasticColor);
+
+            // --- 6. Page Pattern & Format ---
+            const patternVal = document.getElementById('pagePatternSelect').value;
+            internalPage.className = `face first-page ${patternVal}`;
+
+            const formatVal = document.getElementById('pageFormatSelect').value;
+            if (formatVal === 'dated') {
+                pageFormatOverlay.classList.remove('hidden');
+                setTimeout(() => pageFormatOverlay.classList.remove('opacity-0'), 10);
+            } else {
+                pageFormatOverlay.classList.add('opacity-0');
+                setTimeout(() => pageFormatOverlay.classList.add('hidden'), 300);
+            }
+
+            // --- 7. Texture Overlay ---
+            const textureVal = document.getElementById('textureSelect').value;
+            textureOverlay.className = 'texture-overlay';
+            if (textureVal === 'linen')   textureOverlay.classList.add('texture-linen');
+            if (textureVal === 'leather') textureOverlay.classList.add('texture-leather');
+
+            // --- 8. Finish Overlay ---
+            const finishVal = form.querySelector('input[name="coverFinish"]:checked').value;
+            finishOverlay.className = 'finish-overlay';
+            if (finishVal === 'glossy')      finishOverlay.classList.add('finish-glossy');
+            if (finishVal === 'holographic') finishOverlay.classList.add('finish-holographic');
+
+            // --- 9. Page Edges (Metallic) ---
+            const edgeVal = form.querySelector('input[name="pageEdge"]:checked').value;
+            const edgeGrad = config.edgeGradients[edgeVal];
+            const defaultEdge = 'repeating-linear-gradient(to right, #fff, #fff 2px, #f0f0f0 2px, #f0f0f0 4px)';
+            pagesRight.style.background  = edgeGrad || defaultEdge;
+            pagesTop.style.background    = edgeGrad ? edgeGrad.replace('to right', 'to bottom') : defaultEdge.replace('to right', 'to bottom');
+            pagesBottom.style.background = edgeGrad ? edgeGrad.replace('to right', 'to top')   : defaultEdge.replace('to right', 'to top');
+
+            // --- 10. Binding Type ---
+            const bindingVal = form.querySelector('input[name="bindingType"]:checked').value;
+            if (bindingVal === 'spiral') {
+                classicSpine.style.opacity = '0';
+                classicSpine.style.pointerEvents = 'none';
+                spiralBinding.style.display = 'block';
+            } else {
+                classicSpine.style.opacity = '1';
+                classicSpine.style.pointerEvents = '';
+                spiralBinding.style.display = 'none';
+            }
+
+            // --- 11. Metallic Corners ---
+            const cornersChecked = document.getElementById('cornersToggle').checked;
+            if (cornersChecked) {
+                const cornerColorVal = form.querySelector('input[name="cornerColor"]:checked')?.value || 'gold';
+                const cc = config.cornerColors[cornerColorVal];
+                bookModel.style.setProperty('--corner-color-1', cc.c1);
+                bookModel.style.setProperty('--corner-color-2', cc.c2);
+                Object.values(corners).forEach(c => c.style.display = 'block');
+            } else {
+                Object.values(corners).forEach(c => c.style.display = 'none');
+            }
+
+            // --- 12. Ribbon Bookmark ---
+            const ribbonVal = document.getElementById('ribbonSelect').value;
+            if (ribbonVal !== 'none') {
+                ribbonBookmark.style.display = 'block';
+                ribbonBookmark.style.background = config.ribbonColors[ribbonVal];
+            } else {
+                ribbonBookmark.style.display = 'none';
+            }
+
+            // --- 13. Cover Text ---
+            const text1 = document.getElementById('customTextInput').value.trim();
+            const text2 = document.getElementById('customSubtitleInput').value.trim();
+
+            coverTextDisplay.innerText = text1;
+            coverSubtitleDisplay.innerText = text2;
+
+            if (text1 === '' && text2 === '') {
+                coverPlate.style.display = 'none';
+            } else {
+                coverPlate.style.display = 'flex';
+                const showPlate = document.getElementById('showPlateToggle').checked;
+                if (showPlate) {
+                    coverPlate.style.backdropFilter = 'blur(4px)';
+                    coverPlate.style.background     = 'rgba(255, 255, 255, 0.9)';
+                    coverPlate.style.border         = '1px solid rgba(0,0,0,0.05)';
+                    coverPlate.style.boxShadow      = '0 4px 15px rgba(0,0,0,0.05)';
+                    coverPlate.style.padding        = '20px 30px';
+                } else {
+                    coverPlate.style.backdropFilter = 'none';
+                    coverPlate.style.background     = 'transparent';
+                    coverPlate.style.border         = 'none';
+                    coverPlate.style.boxShadow      = 'none';
+                    coverPlate.style.padding        = '0';
+                }
+            }
+
+            // Apply cover plate position
+            coverPlate.style.left = `${coverPlatePos.x}%`;
+            coverPlate.style.top  = `${coverPlatePos.y}%`;
+
+            // --- 14. Font & Size ---
+            const fontVal  = document.getElementById('fontSelect').value;
+            const sizeScale = parseFloat(document.getElementById('fontSizeSlider').value);
+            document.getElementById('fontSizeValDisplay').textContent = sizeScale.toFixed(2) + '×';
+
+            bookModel.style.setProperty('--font-family', config.fonts[fontVal]);
+
+            let baseFontSize;
+            if (fontVal === 'Caveat') {
+                baseFontSize = 2.4;
+                coverTextDisplay.style.fontWeight = '700';
+            } else if (fontVal === 'Quicksand') {
+                baseFontSize = 1.4;
+                coverTextDisplay.style.fontWeight = '700';
+            } else {
+                baseFontSize = 1.7;
+                coverTextDisplay.style.fontWeight = '600';
+            }
+            coverTextDisplay.style.fontSize = `${baseFontSize * sizeScale}rem`;
+
+            // --- 15. Text Effect ---
+            const effectVal = document.getElementById('textEffectSelect').value;
+            coverTextDisplay.classList.remove('foil-gold', 'foil-silver', 'foil-rosegold');
+            coverTextDisplay.style.background = '';
+            coverTextDisplay.style.webkitBackgroundClip = '';
+            coverTextDisplay.style.webkitTextFillColor = '';
+            coverTextDisplay.style.backgroundClip = '';
+            coverTextDisplay.style.animation = '';
+            coverTextDisplay.style.filter = '';
+
+            if (effectVal === 'foil-gold')    coverTextDisplay.classList.add('foil-gold');
+            else if (effectVal === 'foil-silver')   coverTextDisplay.classList.add('foil-silver');
+            else if (effectVal === 'foil-rosegold') coverTextDisplay.classList.add('foil-rosegold');
+            else {
+                // ink effects: set color
+                syncTextContrast(effectVal);
+            }
+
+            // --- 16. Dedication Page ---
+            if (isBookOpen) updateDedicationPage();
+        }
+
+        // =========================================================
+        // Dedication Page
+        // =========================================================
+        function updateDedicationPage() {
+            const text = document.getElementById('dedicationText').value.trim();
+            if (text) {
+                frontCoverInner.innerHTML = `
+                    <div class="dedication-content">
+                        <div class="ded-ornament">✦</div>
+                        <p>${text.replace(/\n/g, '<br>')}</p>
+                        <div class="ded-ornament" style="margin-top:8px;">✦</div>
+                    </div>`;
+            } else {
+                frontCoverInner.innerHTML = '';
+                frontCoverInner.style.backgroundImage = 'repeating-linear-gradient(45deg, #f9f9f9 25%, transparent 25%, transparent 75%, #f9f9f9 75%, #f9f9f9), repeating-linear-gradient(45deg, #f9f9f9 25%, #fff 25%, #fff 75%, #f9f9f9 75%, #f9f9f9)';
+                frontCoverInner.style.backgroundPosition = '0 0, 10px 10px';
+                frontCoverInner.style.backgroundSize = '20px 20px';
+            }
+        }
+
+        // =========================================================
+        // Text Contrast Helper
+        // =========================================================
+        function syncTextContrast(effectVal) {
+            // Only applies when NOT using foil effects
+            if (effectVal === 'ink-light') {
+                coverTextDisplay.style.color = '#ffffff';
+                coverTextDisplay.style.textShadow = '0 2px 4px rgba(0,0,0,0.5)';
+                coverSubtitleDisplay.style.color = '#ffffff';
+                coverSubtitleDisplay.style.textShadow = '0 1px 3px rgba(0,0,0,0.5)';
+            } else {
+                // ink-dark or default
+                const showPlate = document.getElementById('showPlateToggle').checked;
+                if (!showPlate) {
+                    // determine contrast from cover color
+                    const isDark = isDarkColor(currentCoverColor);
+                    if (isDark || uploadedImageUrl) {
+                        coverTextDisplay.style.color = '#ffffff';
+                        coverTextDisplay.style.textShadow = '0 2px 4px rgba(0,0,0,0.5)';
+                        coverSubtitleDisplay.style.color = '#ffffff';
+                        coverSubtitleDisplay.style.textShadow = '0 1px 3px rgba(0,0,0,0.5)';
+                    } else {
+                        coverTextDisplay.style.color = '#383838';
+                        coverTextDisplay.style.textShadow = 'none';
+                        coverSubtitleDisplay.style.color = '#383838';
+                        coverSubtitleDisplay.style.textShadow = 'none';
+                    }
+                } else {
+                    coverTextDisplay.style.color = '#383838';
+                    coverTextDisplay.style.textShadow = 'none';
+                    coverSubtitleDisplay.style.color = '#383838';
+                    coverSubtitleDisplay.style.textShadow = 'none';
+                }
+            }
+        }
+
+        function isDarkColor(hex) {
+            if (!hex || !hex.startsWith('#')) return false;
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+            return luminance < 0.5;
+        }
+
+        // =========================================================
+        // Mock Add to Cart
+        // =========================================================
+        function addToCart() {
+            const btn = document.querySelector('button[type="button"][onclick]');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
+            btn.classList.add('bg-sage', 'text-white');
+            btn.classList.remove('bg-blush');
+            setTimeout(() => {
+                btn.innerHTML = '<i class="fa-solid fa-heart"></i> ¡Diseño guardado!';
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.classList.remove('bg-sage');
+                    btn.classList.add('bg-blush');
+                }, 2000);
+            }, 1000);
+        }
+
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
